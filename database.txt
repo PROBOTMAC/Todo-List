@@ -1,0 +1,4 @@
+1,Exams,Study 4 Hours a Day,2025-05-28,false
+2,Practice,1 hour Daily piano practice,2025-06-25,false
+3,Excercise,Morning 1 hour Workout,2025-06-26,false
+4,Jagging,do Morning jagging,2025-08-29,true
