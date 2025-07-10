@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Google Keep Todo</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Arial, Helvetica, sans-serif; }
+    body {
+      background-color: #1e1e1e;
+      color: #fff;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 2rem;
+      color: #ffeb3b;
+    }
+    .add-card, .card {
+      background: #2c2c2c;
+      border-radius: 12px;
+      padding: 16px;
+      width: 100%;
+      max-width: 500px;
+      margin: 10px;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+    }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+    }
+    .add-card input, .card input {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      background: #3b3b3b;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+    }
+    .task-list { margin-top: 10px; }
+    .task-list div {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #3a3a3a;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+    }
+    .completed {
+      text-decoration: line-through;
+      color: gray;
+    }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .actions button {
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .actions .delete {
+      background: #f44336;
+    }
+    .task-actions button {
+      background: transparent;
+      color: #ccc;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .task-actions button:hover {
+      color: white;
+    }
+    .task-text {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h1>📝 My Notes</h1>
+
+  <div class="add-card">
+    <input id="newTitle" placeholder="Title" />
+    <input id="newTask" placeholder="Enter task... " onkeypress="handleEnter(event)" />
+    <ul id="newTaskList"></ul>
+    <div class="actions">
+      <button onclick="saveCard()">Save</button>
+    </div>
+  </div>
+
+  <div id="cardContainer" class="cards-grid"></div>
+
+  <script>
+    const baseURL = "http://localhost:8080";
+
+    let newTasks = [];
+
+    function handleEnter(e) {
+      if (e.key === 'Enter') {
+        const taskInput = document.getElementById('newTask');
+        const task = taskInput.value.trim();
+        if (task) {
+          newTasks.push({ task, completed: false });
+          taskInput.value = '';
+          renderNewTasks();
+        }
+      }
+    }
+
+    function renderNewTasks() {
+      const ul = document.getElementById('newTaskList');
+      ul.innerHTML = '';
+      newTasks.forEach((t, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>${t.task}</span>
+            <button onclick="removeNewTask(${index})">🗑️</button>
+          </div>
+        `;
+        ul.appendChild(li);
+      });
+    }
+
+    function removeNewTask(index) {
+      newTasks.splice(index, 1);
+      renderNewTasks();
+    }
+
+    function saveCard() {
+      const title = document.getElementById('newTitle').value;
+      if (newTasks.length === 0) return alert("Add at least one task");
+
+      fetch(`${baseURL}/Todo/title`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, todo: newTasks })
+      }).then(() => {
+        newTasks = [];
+        document.getElementById('newTitle').value = '';
+        document.getElementById('newTask').value = '';
+        renderNewTasks();
+        loadCards();
+      });
+    }
+
+function loadCards() {
+  fetch(`${baseURL}/Todo`)
+    .then(res => res.json())
+    .then(data => {
+      const cards = {};
+      data.forEach(todo => {
+        if (!cards[todo.title.id]) {
+          cards[todo.title.id] = {
+            id: todo.title.id,
+            title: todo.title.title,
+            todo: []
+          };
+        }
+        cards[todo.title.id].todo.push(todo);
+      });
+
+      const container = document.getElementById('cardContainer');
+      container.innerHTML = '';
+
+      Object.values(cards).forEach(card => {
+        const div = document.createElement('div');
+        div.className = 'card';
+
+        div.innerHTML = `
+          <input value="${card.title}" onchange="editCardTitle(${card.id}, this.value)" />
+          <div class="task-list">
+            ${card.todo
+              .sort((a, b) => a.completed - b.completed) // Move completed to bottom
+              .map(t => `
+                <div class="task ${t.completed ? 'completed-task' : ''}">
+                  <input 
+                    value="${t.task}" 
+                    onchange="editTask(${t.id}, this.value)" 
+                    class="${t.completed ? 'completed' : ''}" 
+                  />
+                  <div class="task-actions">
+                    <button onclick="toggleComplete(${t.id}, ${t.completed})">
+                       ${t.completed ? '❌' : '✔️'}
+                    </button>
+
+                    <button onclick="deleteTask(${t.id})">🗑️</button>
+                  </div>
+                </div>
+              `).join('')}
+          </div>
+          <div class="actions">
+            <button class="delete" onclick="deleteCard(${card.id})">Delete Card</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    });
+}
+
+
+    function editCardTitle(id, newTitle) {
+      fetch(`${baseURL}/Todo/title/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle, todo: [] })
+      }).then(() => loadCards());
+    }
+
+    function editTask(id, newTask) {
+      fetch(`${baseURL}/Todo/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({task:newTask})
+      }).then(() => loadCards());
+    }
+
+
+    function toggleComplete(id, status) {
+      fetch(`${baseURL}/Todo/${status ? 'notCompleted' : 'completed'}?id=${id}`, {
+        method: 'PUT'
+      }).then(() => loadCards());
+    }
+
+    function deleteTask(id) {
+      fetch(`${baseURL}/Todo?id=${id}`, {
+        method: 'DELETE'
+      }).then(() => loadCards());
+    }
+
+    function deleteCard(id) {
+      fetch(`${baseURL}/Todo/Title?id=${id}`, {
+        method: 'DELETE'
+      }).then(() => loadCards());
+    }
+
+    loadCards();
+  </script>
+</body>
+</html>
