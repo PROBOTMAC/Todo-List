@@ -4,6 +4,7 @@ A simple and elegant Todo List web application built with **Spring Boot** for th
 It supports creating task cards (with or without titles), marking tasks as complete/incomplete, editing, and deleting both tasks and cards.
 
 ---
+![UI Screenshot](photos/screenshot.png)
 
 ## 🔧 Features
 
@@ -28,5 +29,5 @@ It supports creating task cards (with or without titles), marking tasks as compl
 
 ---
 
-## 📂 Project Structure
+
 
